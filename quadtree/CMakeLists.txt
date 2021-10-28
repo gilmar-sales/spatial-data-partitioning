@@ -1,7 +1,6 @@
-cmake_minimum_required(VERSION 3.20)
+cmake_minimum_required(VERSION 3.15)
 set(CMAKE_CXX_STANDARD 17)
 
-project(Quadtree)
 
 find_package(OpenGL REQUIRED)
 
@@ -15,6 +14,11 @@ target_link_libraries(collisions
     glad
 )
 
+target_precompile_headers(collisions
+PUBLIC
+    src/common.h 
+)
+
 add_executable(collisions_quadtree
     "src/collisions_quadtree.cpp"
     "src/quadtree.cpp"
@@ -26,4 +30,9 @@ target_link_libraries(collisions_quadtree
     glm
     glfw
     glad
+)
+
+target_precompile_headers(collisions_quadtree
+PUBLIC
+    src/common.h 
 )

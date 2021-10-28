@@ -12,16 +12,22 @@
 #include "quadtree.h"
 #include "particle.h"
 
-uint particles_count = 1500;
-float max_radius = 10.f;
+std::string window_title = "Collisions with QuadTree";
+
+const uint particles_count = 10000;
+float max_radius = 3.f;
+float min_radius = 3.f;
+
 float screen_width = 1280.f;
 float screen_height = 720.f;
-std::string window_title = "Collisions with QuadTree";
+float half_width = screen_width / 2.f;
+float half_height = screen_height / 2.f;
 
 uint initCircle(glm::vec2 point);
 uint initQuad(glm::vec2 point);
 bool intersect(Particle& particle, Particle& other);
-glm::vec2 project(glm::vec2 vecU, glm::vec2 vecV);
+
+void update_physics(Particle* particles, std::shared_ptr<QuadTree> quad_tree, uint count, float deltaTime);
 
 int main(int argc, char const *argv[])
 {
@@ -29,8 +35,8 @@ int main(int argc, char const *argv[])
 
     assert(glfwInitialized);
 
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     glfwWindowHint(GLFW_SAMPLES, 4);
 
@@ -79,9 +85,6 @@ int main(int argc, char const *argv[])
 
     glm::mat4 projection = glm::mat4(1.0f);
 
-    static float half_width = screen_width / 2.f;
-    static float half_height = screen_height / 2.f;
-
     projection = glm::ortho(-half_width, half_width, -half_height, half_height,-1000.0f, 1000.0f);
 
     glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "projection"), 1, GL_FALSE, &projection[0][0]);
@@ -112,9 +115,9 @@ int main(int argc, char const *argv[])
     std::uniform_int_distribution<int> y_distribution(-(half_height-max_radius), half_height-max_radius);
     std::uniform_int_distribution<int> velocity_distribution(10, 20);
     std::uniform_int_distribution<int> color_distribution(25, 100);
-    std::uniform_int_distribution<int> radius_distribution(5, max_radius);
+    std::uniform_int_distribution<int> radius_distribution(min_radius, max_radius);
 
-    for (int i = 0; i < particles_count; i++) 
+    for (uint i = 0; i < particles_count; i++) 
     {
         Particle& particle = particles[i];
         particle.position.x = x_distribution(generator);
@@ -143,7 +146,7 @@ int main(int argc, char const *argv[])
         glClear(GL_COLOR_BUFFER_BIT);
 
         //create quadtree
-        std::unique_ptr<QuadTree> quad_tree = std::make_unique<QuadTree>(screen_center, half_width, 5);
+        std::shared_ptr<QuadTree> quad_tree = std::make_shared<QuadTree>(screen_center, half_width, 5);
 
         for (Particle& particle : particles)
         {
@@ -153,15 +156,155 @@ int main(int argc, char const *argv[])
         quad_tree->draw(quadVAO, shaderProgram);
 
         //update physics
-        for (Particle& particle : particles)
+        update_physics(particles, quad_tree, particles_count, deltaTime);
+
+        //render particles
+        for (uint i = 0; i < particles_count; i++)
         {
+            glm::mat4 model          = glm::mat4(1.0f);
+            model       = glm::translate(model, glm::vec3(particles[i].position, 0.0f));
+            model       = glm::scale(model, glm::vec3(particles[i].radius, particles[i].radius, 0.0f));
+
+            glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), 1, GL_FALSE, &model[0][0]);
+            glUniform3fv(glGetUniformLocation(shaderProgram, "color"), 1, &particles[i].color[0]);
+            glBindVertexArray(circleVAO);
+            glDrawElements(GL_TRIANGLES, 90, GL_UNSIGNED_INT, 0);
+        }
+
+
+        glfwSwapBuffers(window);
+
+        glfwPollEvents();    
+
+        double now = glfwGetTime();
+        deltaTime = now - lastTime;
+        lastTime = now;
+
+        frameTimeAccumulator += deltaTime;
+        framesPerSecond++;
+        if (frameTimeAccumulator >= 1)
+        {
+            std::stringstream fmt;
+
+            fmt << window_title << " fps: " << framesPerSecond;
+
+            glfwSetWindowTitle(window, fmt.str().c_str());
+            frameTimeAccumulator = 0;
+            framesPerSecond = 0;
+        }
+    }
+
+    glDeleteVertexArrays(1, &circleVAO);
+    glDeleteVertexArrays(1, &quadVAO);
+
+    glfwTerminate();
+
+    return 0;
+}
+
+uint initCircle(glm::vec2 point) {
+    std::vector<glm::vec2> vertices = std::vector<glm::vec2>(32);
+
+    vertices[0] = point;
+
+
+    for (uint i = 1; i < 32; i++)
+    {
+        float angle = (360.f/30.f) * (i - 1);
+        glm::vec2 vertice = {glm::cos(glm::radians(angle)), glm::sin(glm::radians(angle))};
+        vertices[i] = vertice;
+    }
+
+    std::vector<uint> indices = std::vector<uint>(96);
+    
+
+    for(uint i = 0; i < 32; i++) {
+        indices[0+(i*3)] = 0;
+        indices[1+(i*3)] = i+1;
+        indices[2+(i*3)] = i+2;
+    }
+
+    //indices[89] = 1;
+    
+     uint VBO, VAO, EBO;
+    glGenVertexArrays(1, &VAO);
+    glGenBuffers(1, &VBO);
+    glGenBuffers(1, &EBO);
+    // bind the Vertex Array Object first, then bind and set vertex buffer(s), and then configure vertex attributes(s).
+    glBindVertexArray(VAO);
+
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices[0])* vertices.size(), &vertices[0], GL_STATIC_DRAW);
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices[0]) * indices.size(), &indices[0], GL_STATIC_DRAW);
+
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+
+    glBindBuffer(GL_ARRAY_BUFFER, 0); 
+    glBindVertexArray(0);
+    
+    return VAO;
+}
+
+
+uint initQuad(glm::vec2 point) {
+    
+    std::vector<glm::vec2> vertices = {
+        {-1,1},
+        {1,1},
+        {1, -1},
+        {-1,-1}
+    };
+
+
+    std::vector<uint> indices = {
+        0, 1,
+        1, 2,
+        2,3,
+        3,0
+    };
+
+    
+     uint VBO, VAO, EBO;
+    glGenVertexArrays(1, &VAO);
+    glGenBuffers(1, &VBO);
+    glGenBuffers(1, &EBO);
+    // bind the Vertex Array Object first, then bind and set vertex buffer(s), and then configure vertex attributes(s).
+    glBindVertexArray(VAO);
+
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices[0])* vertices.size(), &vertices[0], GL_STATIC_DRAW);
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices[0]) * indices.size(), &indices[0], GL_STATIC_DRAW);
+
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+
+    glBindBuffer(GL_ARRAY_BUFFER, 0); 
+    glBindVertexArray(0);
+    
+    return VAO;
+}
+
+bool intersect(Particle& particle, Particle& other)
+{
+    return glm::distance(particle.position, other.position) <= particle.radius + other.radius;
+}
+
+void update_physics(Particle* particles, std::shared_ptr<QuadTree> quad_tree, uint count, float deltaTime)
+{
+    for (uint i = 0; i < count; i++)
+        {
+            Particle& particle = particles[i];
             std::vector<Particle*> elements = {};
 
             quad_tree->query(&particle, &elements);
 
             for(Particle* other : elements)
             {
-                // std::cout << other.position.x << "," << other.position.y << "\n"; 
                 if (intersect(particle, *other))
                 {
                     glm::vec2 distance = particle.position - other->position;
@@ -221,146 +364,4 @@ int main(int argc, char const *argv[])
 
             // particle.velocity *= 0.998f;
         }
-
-        //render particles
-        for (int i = 0; i < particles_count; i++)
-        {
-            glm::mat4 model          = glm::mat4(1.0f);
-            model       = glm::translate(model, glm::vec3(particles[i].position, 0.0f));
-            model       = glm::scale(model, glm::vec3(particles[i].radius, particles[i].radius, 0.0f));
-
-            glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), 1, GL_FALSE, &model[0][0]);
-            glUniform3fv(glGetUniformLocation(shaderProgram, "color"), 1, &particles[i].color[0]);
-            glBindVertexArray(circleVAO);
-            glDrawElements(GL_TRIANGLES, 90, GL_UNSIGNED_INT, 0);
-        }
-
-
-        glfwSwapBuffers(window);
-
-        glfwPollEvents();    
-
-        double now = glfwGetTime();
-        deltaTime = now - lastTime;
-        lastTime = now;
-
-        frameTimeAccumulator += deltaTime;
-        framesPerSecond++;
-        if (frameTimeAccumulator >= 1)
-        {
-            std::stringstream fmt;
-
-            fmt << window_title << " fps: " << framesPerSecond;
-
-            glfwSetWindowTitle(window, fmt.str().c_str());
-            frameTimeAccumulator = 0;
-            framesPerSecond = 0;
-        }
-    }
-
-    glDeleteVertexArrays(1, &circleVAO);
-    glDeleteVertexArrays(1, &quadVAO);
-
-    glfwTerminate();
-
-    return 0;
-}
-
-uint initCircle(glm::vec2 point) {
-    std::vector<glm::vec2> vertices = std::vector<glm::vec2>(32);
-
-    vertices[0] = point;
-
-
-    for (uint i = 1; i < 32; i++)
-    {
-        float angle = (360.f/30.f) * (i - 1);
-        glm::vec2 vertice = {glm::cos(glm::radians(angle)), glm::sin(glm::radians(angle))};
-        vertices[i] = vertice;
-    }
-
-    std::vector<uint> indices = std::vector<uint>(96);
-    
-
-    for(int i = 0; i < 32; i++) {
-        indices[0+(i*3)] = 0;
-        indices[1+(i*3)] = i+1;
-        indices[2+(i*3)] = i+2;
-    }
-
-    //indices[89] = 1;
-    
-     unsigned int VBO, VAO, EBO;
-    glGenVertexArrays(1, &VAO);
-    glGenBuffers(1, &VBO);
-    glGenBuffers(1, &EBO);
-    // bind the Vertex Array Object first, then bind and set vertex buffer(s), and then configure vertex attributes(s).
-    glBindVertexArray(VAO);
-
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices[0])* vertices.size(), &vertices[0], GL_STATIC_DRAW);
-
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices[0]) * indices.size(), &indices[0], GL_STATIC_DRAW);
-
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(0);
-
-    glBindBuffer(GL_ARRAY_BUFFER, 0); 
-    glBindVertexArray(0);
-    
-    return VAO;
-}
-
-
-uint initQuad(glm::vec2 point) {
-    
-    std::vector<glm::vec2> vertices = {
-        {-1,1},
-        {1,1},
-        {1, -1},
-        {-1,-1}
-    };
-
-
-    std::vector<uint> indices = {
-        0, 1,
-        1, 2,
-        2,3,
-        3,0
-    };
-
-    
-     unsigned int VBO, VAO, EBO;
-    glGenVertexArrays(1, &VAO);
-    glGenBuffers(1, &VBO);
-    glGenBuffers(1, &EBO);
-    // bind the Vertex Array Object first, then bind and set vertex buffer(s), and then configure vertex attributes(s).
-    glBindVertexArray(VAO);
-
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices[0])* vertices.size(), &vertices[0], GL_STATIC_DRAW);
-
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices[0]) * indices.size(), &indices[0], GL_STATIC_DRAW);
-
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(0);
-
-    glBindBuffer(GL_ARRAY_BUFFER, 0); 
-    glBindVertexArray(0);
-    
-    return VAO;
-}
-
-bool intersect(Particle& particle, Particle& other)
-{
-    return glm::distance(particle.position, other.position) <= particle.radius + other.radius;
-}
-
-glm::vec2 project(glm::vec2 vecU, glm::vec2 vecV)
-{
-    vecV *= (glm::dot(vecU.x, vecU.y) / glm::dot(vecV.x, vecV.y));
-
-    return vecV;
 }
