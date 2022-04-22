@@ -4,11 +4,11 @@
 #include <functional>
 #include <memory>
 
-#include <glad/glad.h>
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
+#include "glad/glad.h"
+#include "glm/glm.hpp"
+#include "glm/gtc/matrix_transform.hpp"
 
-#include "particle.h"
+#include "particle.hpp"
 
 class QuadTree {
 public:

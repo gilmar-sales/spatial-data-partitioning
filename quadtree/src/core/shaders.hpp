@@ -1,5 +1,5 @@
-#pragma once
-
+#ifndef SPATIAL_DATA_PARTITIONING_SHADERS_HPP
+#define SPATIAL_DATA_PARTITIONING_SHADERS_HPP
 
 #define checkShader(shader)                                 \
 {                                                           \
@@ -42,3 +42,5 @@ const char* fragmentSource = R"glsl(
         outColor = vec4(color, 1.0);
     }
 )glsl";
+
+#endif //SPATIAL_DATA_PARTITIONING_SHADERS_HPP
