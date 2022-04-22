@@ -4,7 +4,7 @@ Spatial Partitioning Data Structures with examples and comparisons
 ![Iteration](resources/greedy.png)
 ![QuadTree](resources/quadtree.png)
 ## Quad Trees
-Quadtree is a data structure to **efficiently** store data of points on a two-dimensional space(plane). It works just as a binary tree,
+Quadtree is a data structure to **efficiently** store data of points on a two-dimensional space(plane). It works like as a binary tree,
 but instead of two partitions (left, right), a quadtree organize the data with four partitions (top-left, top-right, bottom-left, bottom-right).
 
 ### Construct steps
