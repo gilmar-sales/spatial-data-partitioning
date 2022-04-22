@@ -38,16 +38,16 @@ int main(int argc, char const *argv[]) {
             quad_tree->insert(&particles[i]);
         }
 
-        //quad_tree->draw(quadVAO, Application::get()->get_shader_program());
+        quad_tree->draw(quadVAO, Application::get()->get_shader_program());
 
-        uint thread_load = particles_count / thread_count;
+        unsigned thread_load = particles_count / thread_count;
 
         //update physics
-        for (uint i = 0; i < thread_count; i++) {
+        for (unsigned i = 0; i < thread_count; i++) {
             threads[i] = std::thread(update_physics, &particles[thread_load*i], quad_tree, thread_load, Application::delta_time);
         }
 
-        for (uint i = 0; i < thread_count; i++) {
+        for (unsigned i = 0; i < thread_count; i++) {
             threads[i].join();
         }
 

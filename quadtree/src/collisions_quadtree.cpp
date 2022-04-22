@@ -34,7 +34,7 @@ int main(int argc, char const *argv[]) {
             quad_tree->insert(&particles[i]);
         }
 
-        //quad_tree->draw(quadVAO, Application::get()->get_shader_program());
+        quad_tree->draw(quadVAO, Application::get()->get_shader_program());
 
         //update physics
         update_physics(&particles[0], quad_tree, particles_count, Application::delta_time);
