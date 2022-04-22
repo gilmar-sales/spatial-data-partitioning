@@ -2,7 +2,7 @@
 
 #include <iostream>
 
-QuadTree::QuadTree(glm::vec2 position, float half_range, uint capacity)
+QuadTree::QuadTree(glm::vec2 position, float half_range, unsigned capacity)
 {
     m_position = position;
     m_half_range = half_range;
@@ -60,7 +60,7 @@ void QuadTree::query(Particle* particle, std::vector<Particle*>* found)
         return;
     }
 
-    for (uint i = 0; i < m_count; i++)
+    for (unsigned i = 0; i < m_count; i++)
     {
         if(particle == m_elements[i])
             continue;
@@ -101,7 +101,7 @@ bool QuadTree::intersect(Particle* particle)
     );
 }
 
-void QuadTree::draw(uint vao, uint shaderProgram)
+void QuadTree::draw(unsigned vao, unsigned shaderProgram)
 {
     static float color[3] = {1.f,1.f,1.f};
     glm::mat4 model          = glm::mat4(1.0f);

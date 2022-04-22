@@ -11,7 +11,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 
 Window::Window(WindowData data) : data(data) {
-    uint glfwInitialized = glfwInit();
+    unsigned glfwInitialized = glfwInit();
     assert(glfwInitialized);
 
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
@@ -26,7 +26,7 @@ Window::Window(WindowData data) : data(data) {
     glfwMakeContextCurrent(native_window);
     glfwSwapInterval(0);
 
-    uint gladInitialized = gladLoadGLLoader((GLADloadproc)glfwGetProcAddress);
+    unsigned gladInitialized = gladLoadGLLoader((GLADloadproc)glfwGetProcAddress);
     assert(gladInitialized);
 
     glViewport(0, 0, data.width, data.height);

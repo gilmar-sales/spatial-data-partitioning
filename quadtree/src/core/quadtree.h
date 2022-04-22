@@ -12,7 +12,7 @@
 
 class QuadTree {
 public:
-    QuadTree(glm::vec2 position, float half_range, uint capacity);
+    QuadTree(glm::vec2 position, float half_range, unsigned capacity);
     ~QuadTree() = default;
 
     bool insert(Particle* particle);
@@ -20,14 +20,14 @@ public:
     void query(Particle* particle, std::vector<Particle*>* found);
     bool contains(Particle* particle);
     bool intersect(Particle* particle);
-    void draw(uint vao, uint shaderProgram);
+    void draw(unsigned vao, unsigned shaderProgram);
 
 private:
     glm::vec2 m_position;
     float m_half_range;
     std::vector<Particle*> m_elements;
-    uint m_capacity;
-    uint m_count = 0;
+    unsigned m_capacity;
+    unsigned m_count = 0;
 
     std::unique_ptr<QuadTree> m_top_left;
     std::unique_ptr<QuadTree> m_top_right;
