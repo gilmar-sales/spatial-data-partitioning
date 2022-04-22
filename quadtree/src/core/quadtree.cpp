@@ -92,7 +92,6 @@ bool QuadTree::contains(Particle* particle)
 
 bool QuadTree::intersect(Particle* particle)
 {
-    float distance = glm::distance(m_position, particle->position);
     return (
         particle->position.x >= m_position.x - (m_half_range + particle->radius) &&
         particle->position.x <= m_position.x + (m_half_range + particle->radius) &&
